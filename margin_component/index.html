@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>* { box-sizing: border-box; } body { margin:0; padding:0; background:transparent; overflow:hidden; }</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+var Streamlit = {
+  sendBackMsg: function(type, data) {
+    window.parent.postMessage(Object.assign({isStreamlitMessage:true, type:type}, data), '*');
+  },
+  setComponentReady: function() { this.sendBackMsg('streamlit:componentReady', {apiVersion:1}); },
+  setComponentValue: function(value) { this.sendBackMsg('streamlit:setComponentValue', {value:value, dataType:'json'}); },
+  setFrameHeight: function(h) { this.sendBackMsg('streamlit:setFrameHeight', {height: h || document.body.scrollHeight}); }
+};
+
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'streamlit:render') {
+    var args = e.data.args || {};
+    render(args.panel_html || '', parseFloat(args.margin_pct) || 100, args.input_key || 'margin');
+    Streamlit.setFrameHeight();
+  }
+});
+
+function render(panelHtml, marginPct, inputKey) {
+  var ctrlCell = '<td class="ctrl-cell">'
+    + '<span class="ctrl-label">FBG Margin %</span>'
+    + '<div class="ctrl-row">'
+    + '<button class="ctrl-btn" id="btn-dec">&#8722;</button>'
+    + '<button class="ctrl-btn" id="btn-inc">&#43;</button>'
+    + '</div>'
+    + '</td>'
+    + '<input type="hidden" id="margin-inp" value="' + marginPct.toFixed(1) + '">';
+
+  var styles = '<style>'
+    + 'body{margin:0;padding:0;background:transparent;overflow:hidden;}'
+    + '.ctrl-cell{background:#fff8ee;border-right:3px solid #1a2e1a;padding:8px 12px;vertical-align:middle;white-space:nowrap;}'
+    + '.ctrl-label{font-family:"Source Code Pro",monospace;font-size:0.58rem;color:#5a7a5a;text-transform:uppercase;letter-spacing:0.1em;display:block;text-align:center;margin-bottom:6px;}'
+    + '.ctrl-row{display:flex;align-items:center;justify-content:center;gap:8px;}'
+    + '.ctrl-btn{font-family:"Source Code Pro",monospace;font-weight:700;font-size:1rem;color:#1a2e1a;background:#e8dfc8;border:1.5px solid #1a2e1a;border-radius:3px;width:28px;height:28px;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;}'
+    + '.ctrl-btn:hover{background:#1a2e1a;color:#c8a84b;}'
+    + '</style>';
+
+  var html = panelHtml.replace('<td class="or-team-placeholder"></td>', ctrlCell);
+  document.getElementById('root').innerHTML = styles + html;
+
+  var inp = document.getElementById('margin-inp');
+  var btnDec = document.getElementById('btn-dec');
+  var btnInc = document.getElementById('btn-inc');
+  if (!inp || !btnDec) return;
+
+  function snap(v) { return Math.round(Math.max(1, Math.min(10000, v)) * 10) / 10; }
+  function commit(v) {
+    v = snap(v);
+    inp.value = v.toFixed(1);
+    Streamlit.setComponentValue(v);
+  }
+
+  btnDec.addEventListener('click', function(e) { e.preventDefault(); commit(parseFloat(inp.value) - 0.1); });
+  btnInc.addEventListener('click', function(e) { e.preventDefault(); commit(parseFloat(inp.value) + 0.1); });
+
+  Streamlit.setFrameHeight();
+}
+
+Streamlit.setComponentReady();
+</script>
+</body></html>
