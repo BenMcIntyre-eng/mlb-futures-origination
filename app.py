@@ -476,8 +476,8 @@ def scrape_fanduel(state: str) -> pd.DataFrame:
 @st.cache_data(ttl=300, show_spinner=False)
 def scrape_fangraphs() -> pd.DataFrame:
     today = date.today().strftime("%Y-%m-%d")
-    url = ("https://www.fangraphs.com/api/playoff-odds/odds"
-           f"?dateEnd={today}&dateDelta=&projectionMode=2&standingsType=div")
+    api_url = ("https://www.fangraphs.com/api/playoff-odds/odds"
+               f"?dateEnd={today}&dateDelta=&projectionMode=2&standingsType=div")
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*",
@@ -493,8 +493,18 @@ def scrape_fangraphs() -> pd.DataFrame:
         "sec-fetch-mode": "cors",
         "sec-fetch-site": "same-origin",
     }
-    resp = requests.get(url, headers=headers, timeout=20)
+    # Visit the page first to get cookies, then hit the API
+    session = requests.Session()
+    session.headers.update(headers)
+    try:
+        session.get("https://www.fangraphs.com/standings/playoff-odds",
+                    timeout=15, allow_redirects=True)
+    except Exception:
+        pass
+    resp = session.get(api_url, timeout=20)
     resp.raise_for_status()
+    if not resp.text.strip():
+        raise ValueError("FanGraphs returned empty response")
     raw = resp.json()
     rows = []
     dl = {"E":"East","C":"Central","W":"West"}
